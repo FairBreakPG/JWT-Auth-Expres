@@ -1,2 +1,2 @@
 # Express-PostgreSQL
-Conectar un servidor y realizar operaciones en una tabla en la base de datos 
+Actividad de crear api rest para una tienda de Joyas
