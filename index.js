@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { obtenerPost, escribirPost, modificarPost, eliminarPost } from './detalle.js';
+import { obtenerJoyas, filtrarJoyas } from './detalle.js';
 
 const app = express();
 const port = 3000;
@@ -8,45 +8,52 @@ const port = 3000;
 app.use(express.json());
 app.use(cors());
 
-app.get("/posts", async (req, res) => {
+// Middleware para generar reportes
+app.use((req, res, next) => {
+  console.log(`Consulta realizada a la ruta: ${req.path} - Método: ${req.method}`);
+  next();
+});
+
+// Ruta GET /joyas con paginación, ordenamiento y HATEOAS
+app.get('/joyas', async (req, res) => {
   try {
-    const alcanzarPost = await obtenerPost();
-    res.json(alcanzarPost);
+    const { limit = 10, page = 1, order_by = 'id_ASC' } = req.query;
+    const [orderField, orderDirection] = order_by.split('_');
+    const offset = (page - 1) * limit;
+
+    const joyas = await obtenerJoyas(limit, offset, `${orderField} ${orderDirection}`);
+    
+    // Estructura HATEOAS
+    const totalJoyas = joyas.length;
+    const links = {
+      self: `/joyas?page=${page}&limit=${limit}&order_by=${order_by}`,
+      next: `/joyas?page=${+page + 1}&limit=${limit}&order_by=${order_by}`,
+      prev: page > 1 ? `/joyas?page=${+page - 1}&limit=${limit}&order_by=${order_by}` : null,
+    };
+
+    res.json({ totalJoyas, joyas, links });
   } catch (error) {
-    res.status(500).send('Error al obtener posts');
+    res.status(500).send('Error al obtener las joyas');
   }
 });
 
-app.post("/posts", async (req, res) => {
-  const { titulo, url, descripcion } = req.body;
+// Ruta GET /joyas/filtros con filtros de precio, categoría y metal
+app.get('/joyas/filtros', async (req, res) => {
   try {
-    await escribirPost(titulo, url, descripcion);
-    res.send("El post fue Agregado");
+    const { precio_min, precio_max, categoria, metal } = req.query;
+
+    const joyasFiltradas = await filtrarJoyas(precio_min, precio_max, categoria, metal);
+
+    res.json(joyasFiltradas);
   } catch (error) {
-    res.status(500).send('Error al agregar el post');
+    res.status(500).send('Error al filtrar las joyas');
   }
 });
 
-
-app.put("/posts/", async (req, res) => {
-  const { id } = req.params;
-  const { titulo, url, descripcion } = req.body;
-  try {
-    await modificarPost(id, titulo, url, descripcion);
-    res.send(`El post con id ${id} fue modificado`);
-  } catch (error) {
-    res.status(500).send('Error al modificar el post');
-  }
-});
-
-app.delete("/posts/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    await eliminarPost(id);
-    res.send(`El post con id ${id} fue eliminado`);
-  } catch (error) {
-    res.status(500).send('Error al eliminar el post');
-  }
+// Manejo de errores global
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Error del servidor');
 });
 
 app.listen(port, () => console.log(`Servidor escuchando en puerto ${port}`));

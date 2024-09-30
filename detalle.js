@@ -5,51 +5,44 @@ const pool = new Pool({
   host: 'localhost',
   user: 'postgres',
   password: '1234',
-  database: 'likeme',
+  database: 'joyas',
   port: 5432,
 });
 
-export const obtenerPost = async () => {
-  const { rows } = await pool.query("SELECT * FROM posts;");
-  return rows; 
+// Obtener todas las joyas con paginación y ordenamiento
+export const obtenerJoyas = async (limit, offset, orderBy) => {
+  const consulta = `
+    SELECT * FROM inventario
+    ORDER BY ${orderBy} 
+    LIMIT $1 OFFSET $2
+  `;
+  const values = [limit, offset];
+  const { rows } = await pool.query(consulta, values);
+  return rows;
 };
 
-export const escribirPost = async (titulo, url, descripcion) => {
-  const consulta =
-    "INSERT INTO posts (titulo, img, descripcion, likes) VALUES ($1, $2, $3, 0)";
-  const values = [titulo, url, descripcion];
-  try {
-    const result = await pool.query(consulta, values);
-    console.log("Post Agregado", result);
-  } catch (error) {
-    console.error("Error al agregar el post:", error);
-    throw new Error('Error al agregar el post');
-  }
-};
-
-
-
-export const modificarPost = async (id, titulo, url, descripcion) => {
-  const consulta = 
-    "UPDATE posts SET titulo = $1, img = $2, descripcion = $3 WHERE id = $4";
-  const values = [titulo, url, descripcion, id];
+// Filtros para joyas
+export const filtrarJoyas = async (precioMin, precioMax, categoria, metal) => {
+  let consulta = 'SELECT * FROM inventario WHERE 1=1';
+  const values = [];
   
-  try {
-    const result = await pool.query(consulta, values);
-    console.log("Post modificado", result);
-  } catch (error) {
-    console.error("Error al modificar el post:", error);
-    throw new Error('Error al modificar el post');
+  if (precioMin) {
+    values.push(precioMin);
+    consulta += ` AND precio >= $${values.length}`;
   }
-}
-
-
-export const eliminarPost = async (id) => {
-  const query = 'DELETE FROM posts WHERE id = $1';
-  try {
-    await pool.query(query, [id]);
-  } catch (error) {
-    throw new Error('Error al eliminar el post');
+  if (precioMax) {
+    values.push(precioMax);
+    consulta += ` AND precio <= $${values.length}`;
   }
+  if (categoria) {
+    values.push(categoria);
+    consulta += ` AND categoria = $${values.length}`;
+  }
+  if (metal) {
+    values.push(metal);
+    consulta += ` AND metal = $${values.length}`;
+  }
+  
+  const { rows } = await pool.query(consulta, values);
+  return rows;
 };
-
