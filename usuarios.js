@@ -26,22 +26,27 @@ export const registrarUsuario = async (email, password, rol, lenguage) => {
 
 
 export const loginUsuario = async (email, password) => {
-  const consulta = 'SELECT * FROM usuarios WHERE email = $1';
-  const values = [email];
-  const { rows } = await pool.query(consulta, values);
+  try {
+    const consulta = 'SELECT * FROM usuarios WHERE email = $1';
+    const values = [email];
+    const { rows } = await pool.query(consulta, values);
 
-  if (rows.length === 0) throw new Error('Usuario no encontrado');
+    if (rows.length === 0) throw new Error('Usuario no encontrado');
 
-  const usuario = rows[0];
+    const usuario = rows[0];
+    const passwordMatch = await bcrypt.compare(password, usuario.password);
 
- 
-  const passwordMatch = await bcrypt.compare(password, usuario.password);
-  if (!passwordMatch) throw new Error('Contraseña incorrecta');
+    if (!passwordMatch) throw new Error('Contraseña incorrecta');
 
- 
-  const token = jwt.sign({ email: usuario.email }, JWT_SECRET, { expiresIn: '1h' });
-  return token;
+   
+    const token = jwt.sign({ email: usuario.email, rol: usuario.rol }, JWT_SECRET, { expiresIn: '1h' });
+    return token;
+  } catch (error) {
+    console.error('Error en loginUsuario:', error.message);
+    throw new Error('Error en el inicio de sesión');
+  }
 };
+
 
 
 export const obtenerUsuarioPorEmail = async (email) => {

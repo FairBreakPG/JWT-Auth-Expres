@@ -13,14 +13,15 @@ app.use(cors());
 //key
 const JWT_SECRET = 'mi_secreta_llave';
 
-// Middle
 const verificarToken = (req, res, next) => {
-  const token = req.headers['authorization'];
-  if (!token) return res.status(403).send('Token requerido');
-
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(403).send('Token requerido o mal formateado');
+  }
+  const token = authHeader.split(' ')[1];
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) return res.status(401).send('Token inválido');
-    req.email = decoded.email;  
+    req.email = decoded.email;
     next();
   });
 };
@@ -29,7 +30,8 @@ app.post('/usuarios', async (req, res) => {
   try {
     const { email, password, rol, lenguage } = req.body;
     const nuevoUsuario = await registrarUsuario(email, password, rol, lenguage);
-    res.status(201).json(nuevoUsuario);
+    const { password: hashedPassword, ...usuarioSinPassword } = nuevoUsuario;
+    res.status(201).json(usuarioSinPassword);
   } catch (error) {
     res.status(500).send('Error al registrar el usuario');
   }
